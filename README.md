@@ -43,6 +43,12 @@ Key packages:
 - `POST /api/v1/utilities/calculator/evaluate`
 - `POST /api/v1/utilities/emi/calculate`
 
+## API documentation
+
+- Swagger UI: `/swagger-ui.html`
+- OpenAPI JSON: `/v3/api-docs`
+- OpenAPI YAML: `/v3/api-docs.yaml`
+
 ## Run locally
 
 ### Backend
