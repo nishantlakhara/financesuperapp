@@ -22,13 +22,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(
-                                "/actuator/health",
-                                "/api/v1/utilities/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui.html",
-                                "/swagger-ui/**"
-                        )
+                        .requestMatchers("/actuator/health", "/api/v1/utilities/**")
                         .permitAll()
                         .anyRequest()
                         .authenticated())
