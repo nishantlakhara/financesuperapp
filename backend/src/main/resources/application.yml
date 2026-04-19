@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: finance-superapp
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  security:
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
+      - ${FRONTEND_ORIGIN:}
