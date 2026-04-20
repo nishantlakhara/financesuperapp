@@ -1,13 +1,16 @@
-import { request } from "./client";
+import { create, all, MathJsStatic } from "mathjs";
 import type {
   CalculatorRequest,
   CalculatorResponse,
   CompoundInterestRequest,
   CompoundInterestResponse,
+  CompoundingFrequency,
   EmiRequest,
   EmiResponse,
 } from "../types/calculators";
 import type { UtilitySummary } from "../types/utility";
+
+const math: MathJsStatic = create(all);
 
 export const defaultUtilities: UtilitySummary[] = [
   {
@@ -35,27 +38,96 @@ export const defaultUtilities: UtilitySummary[] = [
   },
 ];
 
-export function fetchUtilities() {
-  return request<UtilitySummary[]>("/utilities");
+export function fetchUtilities(): UtilitySummary[] {
+  return defaultUtilities;
 }
 
-export function calculateCompoundInterest(payload: CompoundInterestRequest) {
-  return request<CompoundInterestResponse>("/utilities/compound-interest/calculate", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function evaluateExpression(payload: CalculatorRequest): CalculatorResponse {
+  const expression = payload.expression
+    .replace(/sin\(/g, "sin(deg(")
+    .replace(/cos\(/g, "cos(deg(")
+    .replace(/tan\(/g, "tan(deg(");
+
+  const result = math.evaluate(expression) as number;
+
+  return {
+    expression: payload.expression,
+    mode: payload.mode,
+    result: isNaN(result) || !isFinite(result) ? 0 : result,
+  };
 }
 
-export function evaluateExpression(payload: CalculatorRequest) {
-  return request<CalculatorResponse>("/utilities/calculator/evaluate", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+const periodsPerYearByFrequency: Record<CompoundingFrequency, number> = {
+  ANNUALLY: 1,
+  BIANNUALLY: 2,
+  MONTHLY: 12,
+  DAILY: 365,
+};
+
+export function calculateCompoundInterest(
+  payload: CompoundInterestRequest,
+): CompoundInterestResponse {
+  const { principal, annualRatePercentage, years, compoundingFrequency, periodicContribution = 0 } = payload;
+  const periodsPerYear = periodsPerYearByFrequency[compoundingFrequency];
+  const periodicRate = annualRatePercentage / 100 / periodsPerYear;
+  const totalPeriods = Math.round(years * periodsPerYear);
+
+  const growthFactor = Math.pow(1 + periodicRate, totalPeriods);
+  const principalFutureValue = principal * growthFactor;
+
+  let contributionFutureValue = 0;
+  if (periodicContribution > 0) {
+    if (Math.abs(periodicRate) < 1e-10) {
+      contributionFutureValue = periodicContribution * totalPeriods;
+    } else {
+      contributionFutureValue = periodicContribution * ((growthFactor - 1) / periodicRate);
+    }
+  }
+
+  const maturityAmount = principalFutureValue + contributionFutureValue;
+  const totalContributions = principal + periodicContribution * totalPeriods;
+  const totalInterestEarned = maturityAmount - totalContributions;
+
+  const effectiveAnnualRate = Math.pow(1 + periodicRate, periodsPerYear) - 1;
+
+  return {
+    maturityAmount,
+    totalContributions,
+    totalInterestEarned,
+    effectiveAnnualRatePercentage: effectiveAnnualRate * 100,
+    totalPeriods,
+    compoundingFrequency,
+  };
 }
 
-export function calculateEmi(payload: EmiRequest) {
-  return request<EmiResponse>("/utilities/emi/calculate", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function calculateEmi(payload: EmiRequest): EmiResponse {
+  const { principal, annualRatePercentage, tenureMonths } = payload;
+
+  if (principal <= 0 || tenureMonths <= 0) {
+    return {
+      monthlyInstallment: 0,
+      totalInterest: 0,
+      totalPayment: 0,
+    };
+  }
+
+  let monthlyInstallment: number;
+
+  if (annualRatePercentage === 0) {
+    monthlyInstallment = principal / tenureMonths;
+  } else {
+    const monthlyRate = annualRatePercentage / 100 / 12;
+    monthlyInstallment =
+      (principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) /
+      (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+  }
+
+  const totalPayment = monthlyInstallment * tenureMonths;
+  const totalInterest = totalPayment - principal;
+
+  return {
+    monthlyInstallment,
+    totalInterest,
+    totalPayment,
+  };
 }

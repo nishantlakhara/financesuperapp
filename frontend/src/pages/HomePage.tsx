@@ -1,34 +1,12 @@
-import { useEffect, useState } from "react";
-import { defaultUtilities, fetchUtilities } from "../api/utilityApi";
+import { useState } from "react";
+import { defaultUtilities } from "../api/utilityApi";
 import { PageHeader } from "../components/PageHeader";
 import { UtilityCard } from "../components/UtilityCard";
 import type { UtilitySummary } from "../types/utility";
 
 export function HomePage() {
-  const [utilities, setUtilities] = useState<UtilitySummary[]>(defaultUtilities);
+  const [utilities] = useState<UtilitySummary[]>(defaultUtilities);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isFallbackMode, setIsFallbackMode] = useState(false);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    fetchUtilities()
-      .then((catalog) => {
-        if (!isCancelled) {
-          setUtilities(catalog);
-          setIsFallbackMode(false);
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setIsFallbackMode(true);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const visibleUtilities = utilities
@@ -74,12 +52,7 @@ export function HomePage() {
           </div>
         </div>
 
-        {isFallbackMode ? (
-          <p className="status-banner">
-            The backend catalog endpoint is not reachable right now, so the UI is
-            showing the starter catalog from local configuration.
-          </p>
-        ) : null}
+
       </section>
 
       {visibleUtilities.length > 0 ? (

@@ -664,66 +664,6 @@ export function EmiPage() {
         </aside>
       </section>
 
-      <section className="panel learning-panel">
-        <div className="learning-section">
-          <h2>Formulas Used</h2>
-          <p className="helper-copy">
-            The EMI calculation uses the standard reducing-balance loan formula.
-            A separate fee summary is shown because manual processing fees are
-            not part of the EMI formula by default.
-          </p>
-
-          <div className="formula-legend">
-            {formulaLegendRows.map((item) => (
-              <div className="formula-legend__item" key={item.symbol}>
-                <p className="formula-legend__symbol">{item.symbol}</p>
-                <p className="formula-legend__meaning">{item.meaning}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="formula-stack">
-            <div className="formula-card">
-              <p className="formula-card__title">EMI formula</p>
-              <p className="formula-block">{emiFormula}</p>
-              <p className="formula-note">{emiSubstitution}</p>
-            </div>
-
-            <div className="formula-card">
-              <p className="formula-card__title">Interest formula</p>
-              <p className="formula-block">{interestFormula}</p>
-              <p className="formula-note">{interestSubstitution}</p>
-            </div>
-
-            <div className="formula-card">
-              <p className="formula-card__title">Fee-adjusted cost</p>
-              <p className="formula-block">{feeFormula}</p>
-              <p className="formula-note">{feeSubstitution}</p>
-            </div>
-          </div>
-        </div>
-
-        <aside className="learning-section">
-          <h2>Parameters Used</h2>
-          <p className="helper-copy">
-            These are the values currently being plugged into the EMI
-            calculations.
-          </p>
-
-          <div className="parameter-list">
-            {parameterRows.map((parameter) => (
-              <div className="parameter-row" key={parameter.symbol}>
-                <div>
-                  <p className="parameter-row__symbol">{parameter.symbol}</p>
-                  <p className="parameter-row__label">{parameter.label}</p>
-                </div>
-                <p className="parameter-row__value">{parameter.value}</p>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </section>
-
       <section className="panel schedule-panel">
         <div className="schedule-panel__header">
           <div>
@@ -1117,6 +1057,76 @@ export function EmiPage() {
             </tbody>
           </table>
         </div>
+
+        <div className="schedule-panel__actions schedule-panel__actions--bottom">
+          <button
+            className="button button--secondary"
+            type="button"
+            onClick={handleDownloadSchedule}
+          >
+            Download CSV
+          </button>
+        </div>
+      </section>
+
+      <section className="panel learning-panel">
+        <div className="learning-section">
+          <h2>Formulas Used</h2>
+          <p className="helper-copy">
+            The EMI calculation uses the standard reducing-balance loan formula.
+            A separate fee summary is shown because manual processing fees are
+            not part of the EMI formula by default.
+          </p>
+
+          <div className="formula-legend">
+            {formulaLegendRows.map((item) => (
+              <div className="formula-legend__item" key={item.symbol}>
+                <p className="formula-legend__symbol">{item.symbol}</p>
+                <p className="formula-legend__meaning">{item.meaning}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="formula-stack">
+            <div className="formula-card">
+              <p className="formula-card__title">EMI formula</p>
+              <p className="formula-block">{emiFormula}</p>
+              <p className="formula-note">{emiSubstitution}</p>
+            </div>
+
+            <div className="formula-card">
+              <p className="formula-card__title">Interest formula</p>
+              <p className="formula-block">{interestFormula}</p>
+              <p className="formula-note">{interestSubstitution}</p>
+            </div>
+
+            <div className="formula-card">
+              <p className="formula-card__title">Fee-adjusted cost</p>
+              <p className="formula-block">{feeFormula}</p>
+              <p className="formula-note">{feeSubstitution}</p>
+            </div>
+          </div>
+        </div>
+
+        <aside className="learning-section">
+          <h2>Parameters Used</h2>
+          <p className="helper-copy">
+            These are the values currently being plugged into the EMI
+            calculations.
+          </p>
+
+          <div className="parameter-list">
+            {parameterRows.map((parameter) => (
+              <div className="parameter-row" key={parameter.symbol}>
+                <div>
+                  <p className="parameter-row__symbol">{parameter.symbol}</p>
+                  <p className="parameter-row__label">{parameter.label}</p>
+                </div>
+                <p className="parameter-row__value">{parameter.value}</p>
+              </div>
+            ))}
+          </div>
+        </aside>
       </section>
     </>
   );

@@ -37,6 +37,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .flatMap(verifier -> verifier.verify(token))
                 .ifPresent(authentication -> SecurityContextHolder.getContext().setAuthentication(authentication));
 
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         filterChain.doFilter(request, response);
     }
 }

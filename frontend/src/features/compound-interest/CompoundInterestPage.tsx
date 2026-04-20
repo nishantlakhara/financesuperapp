@@ -43,6 +43,132 @@ function formatAmount(value: number) {
   return Number.isFinite(value) ? amountFormatter.format(value) : "—";
 }
 
+type GrowthDataPoint = {
+  period: number;
+  principalValue: number;
+  contributionValue: number;
+  totalValue: number;
+  totalContributions: number;
+};
+
+function calculateGrowthData(
+  principal: number,
+  annualRatePercentage: number,
+  years: number,
+  compoundingFrequency: CompoundingFrequency,
+  periodicContribution: number,
+): GrowthDataPoint[] {
+  const periodsPerYear = periodsPerYearByFrequency[compoundingFrequency];
+  const periodicRate = annualRatePercentage / 100 / periodsPerYear;
+  const totalPeriods = Math.round(years * periodsPerYear);
+
+  const dataPoints: GrowthDataPoint[] = [];
+  let currentPrincipalValue = principal;
+  let currentContributionValue = 0;
+
+  for (let period = 0; period <= totalPeriods; period++) {
+    const totalContributions = principal + periodicContribution * period;
+    const totalValue = currentPrincipalValue + currentContributionValue;
+
+    dataPoints.push({
+      period,
+      principalValue: currentPrincipalValue,
+      contributionValue: currentContributionValue,
+      totalValue,
+      totalContributions,
+    });
+
+    if (period < totalPeriods) {
+      currentPrincipalValue = currentPrincipalValue * (1 + periodicRate);
+      if (periodicContribution > 0) {
+        if (Math.abs(periodicRate) < 1e-10) {
+          currentContributionValue += periodicContribution;
+        } else {
+          currentContributionValue =
+            (currentContributionValue + periodicContribution) * (1 + periodicRate);
+        }
+      }
+    }
+  }
+
+  return dataPoints;
+}
+
+function getChartPoint(
+  index: number,
+  total: number,
+  value: number,
+  maxValue: number,
+  width: number,
+  height: number,
+  padding: number,
+) {
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const x = total <= 1 ? padding : padding + (index / (total - 1)) * plotWidth;
+  const y =
+    padding +
+    plotHeight -
+    (maxValue <= 0 ? 0 : (value / maxValue) * plotHeight);
+  return { x, y };
+}
+
+function createLinePath(
+  values: number[],
+  maxValue: number,
+  width: number,
+  height: number,
+  padding: number,
+) {
+  return values
+    .map((value, index) => {
+      const point = getChartPoint(
+        index,
+        values.length,
+        value,
+        maxValue,
+        width,
+        height,
+        padding,
+      );
+      return `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`;
+    })
+    .join(" ");
+}
+
+function createAreaPath(
+  values: number[],
+  maxValue: number,
+  width: number,
+  height: number,
+  padding: number,
+  baselineValues: number[],
+) {
+  if (values.length === 0) return "";
+
+  const linePath = createLinePath(values, maxValue, width, height, padding);
+  const firstPoint = getChartPoint(0, values.length, values[0], maxValue, width, height, padding);
+  const lastPoint = getChartPoint(values.length - 1, values.length, values[values.length - 1], maxValue, width, height, padding);
+  const firstBaseline = getChartPoint(0, values.length, baselineValues[0], maxValue, width, height, padding);
+  const lastBaseline = getChartPoint(values.length - 1, values.length, baselineValues[baselineValues.length - 1], maxValue, width, height, padding);
+
+  return `${linePath} L ${lastBaseline.x} ${lastBaseline.y} L ${firstBaseline.x} ${firstBaseline.y} Z`;
+}
+
+type HoveredChartPoint = {
+  period: number;
+  principalValue: number;
+  contributionValue: number;
+  totalValue: number;
+  totalContributions: number;
+  x: number;
+  y: number;
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function CompoundInterestPage() {
   const [formValues, setFormValues] = useState({
     principal: "10000",
@@ -54,6 +180,7 @@ export function CompoundInterestPage() {
   const [result, setResult] = useState<CompoundInterestResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hoveredPoint, setHoveredPoint] = useState<HoveredChartPoint | null>(null);
   const principal = Number(formValues.principal || 0);
   const annualRatePercentage = Number(formValues.annualRatePercentage || 0);
   const years = Number(formValues.years || 0);
@@ -176,6 +303,11 @@ export function CompoundInterestPage() {
   ) {
     const { name, value } = event.target;
     setFormValues((current) => ({ ...current, [name]: value }));
+    setHoveredPoint(null);
+    if (name !== "periodicContribution") {
+      setResult(null);
+    }
+    setErrorMessage("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -215,6 +347,7 @@ export function CompoundInterestPage() {
     });
     setResult(null);
     setErrorMessage("");
+    setHoveredPoint(null);
   }
 
   return (
@@ -414,6 +547,282 @@ export function CompoundInterestPage() {
           )}
         </aside>
       </section>
+
+      {result && principal > 0 && years > 0 && (
+        <section className="panel schedule-panel">
+          <div className="schedule-panel__header">
+            <h2>Growth Over Time</h2>
+            <p className="schedule-panel__meta">
+              {totalPeriods} compounding periods over {years} year{years !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          <div className="chart-card">
+            <div className="chart-card__header">
+              <div>
+                <p className="chart-card__title">Investment Growth</p>
+                <p className="chart-card__subtitle">
+                  Principal vs contributions vs total value
+                </p>
+              </div>
+              <div className="chart-legend">
+                <span className="chart-legend__item">
+                  <span className="chart-swatch chart-swatch--purple" />
+                  Principal
+                </span>
+                <span className="chart-legend__item">
+                  <span className="chart-swatch chart-swatch--green" />
+                  Contributions
+                </span>
+                <span className="chart-legend__item">
+                  <span className="chart-swatch chart-swatch--pink" />
+                  Total
+                </span>
+              </div>
+            </div>
+
+            <div className="chart-scroll">
+              {(() => {
+                const chartWidth = 800;
+                const chartHeight = 320;
+                const chartPadding = 65;
+                const growthData = calculateGrowthData(
+                  principal,
+                  annualRatePercentage,
+                  years,
+                  formValues.compoundingFrequency,
+                  periodicContribution,
+                );
+
+                const maxValue = Math.max(
+                  ...growthData.map((d) => d.totalValue),
+                  1,
+                );
+
+                const principalValues = growthData.map((d) => d.principalValue);
+                const contributionValues = growthData.map((d) => d.contributionValue);
+                const totalValues = growthData.map((d) => d.totalValue);
+                const contributionBaseValues = growthData.map((d) => d.principalValue);
+
+                const principalLinePath = createLinePath(
+                  principalValues,
+                  maxValue,
+                  chartWidth,
+                  chartHeight,
+                  chartPadding,
+                );
+                const contributionLinePath = createLinePath(
+                  contributionValues,
+                  maxValue,
+                  chartWidth,
+                  chartHeight,
+                  chartPadding,
+                );
+                const totalLinePath = createLinePath(
+                  totalValues,
+                  maxValue,
+                  chartWidth,
+                  chartHeight,
+                  chartPadding,
+                );
+
+                const contributionAreaPath = createAreaPath(
+                  contributionValues,
+                  maxValue,
+                  chartWidth,
+                  chartHeight,
+                  chartPadding,
+                  contributionBaseValues,
+                );
+
+                const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
+                  ratio,
+                  value: maxValue * ratio,
+                }));
+
+                const labelPeriods = Math.min(6, growthData.length - 1);
+                const periodStep = Math.max(1, Math.floor(growthData.length / labelPeriods));
+                const labelIndices = Array.from(
+                  { length: Math.ceil(growthData.length / periodStep) },
+                  (_, i) => i * periodStep,
+                ).filter((i) => i < growthData.length);
+
+                return (
+                  <svg
+                    className="chart-svg"
+                    viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                    preserveAspectRatio="xMinYMin meet"
+                    onMouseLeave={() => setHoveredPoint(null)}
+                  >
+                    {yTicks.map((tick) => {
+                      const point = getChartPoint(
+                        0,
+                        1,
+                        tick.value,
+                        maxValue,
+                        chartWidth,
+                        chartHeight,
+                        chartPadding,
+                      );
+                      return (
+                        <g key={tick.ratio}>
+                          <line
+                            className="chart-grid-line"
+                            x1={chartPadding}
+                            x2={chartWidth - chartPadding}
+                            y1={point.y}
+                            y2={point.y}
+                          />
+                          <text
+                            className="chart-axis-label"
+                            x={chartPadding - 8}
+                            y={point.y + 4}
+                            textAnchor="end"
+                          >
+                            {formatAmount(tick.value)}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    <path
+                      className="chart-area chart-area--green"
+                      d={contributionAreaPath}
+                    />
+                    <path
+                      className="chart-line chart-line--purple"
+                      d={principalLinePath}
+                    />
+                    <path
+                      className="chart-line chart-line--green"
+                      d={contributionLinePath}
+                    />
+                    <path
+                      className="chart-line chart-line--pink"
+                      d={totalLinePath}
+                    />
+
+                    {labelIndices.map((idx) => {
+                      const dataPoint = growthData[idx];
+                      const xPoint = getChartPoint(
+                        idx,
+                        growthData.length - 1,
+                        0,
+                        1,
+                        chartWidth,
+                        chartHeight,
+                        chartPadding,
+                      );
+                      const yearsLabel = (dataPoint.period / periodsPerYear).toFixed(1);
+                      return (
+                        <text
+                          key={idx}
+                          className="chart-axis-label"
+                          x={xPoint.x}
+                          y={chartHeight - 10}
+                          textAnchor={
+                            idx === 0 ? "start" : idx === growthData.length - 1 ? "end" : "middle"
+                          }
+                        >
+                          {yearsLabel}y
+                        </text>
+                      );
+                    })}
+
+                    {hoveredPoint ? (
+                      <line
+                        className="chart-guide-line"
+                        x1={hoveredPoint.x}
+                        x2={hoveredPoint.x}
+                        y1={chartPadding}
+                        y2={chartHeight - chartPadding}
+                      />
+                    ) : null}
+
+                    {growthData.map((dataPoint, idx) => {
+                      const point = getChartPoint(
+                        idx,
+                        growthData.length - 1,
+                        dataPoint.totalValue,
+                        maxValue,
+                        chartWidth,
+                        chartHeight,
+                        chartPadding,
+                      );
+                      return (
+                        <g key={idx}>
+                          <circle
+                            className="chart-point-hit"
+                            cx={point.x}
+                            cy={point.y}
+                            r={10}
+                            tabIndex={0}
+                            aria-label={`Period ${dataPoint.period}, Total: ${formatAmount(dataPoint.totalValue)}`}
+                            onMouseEnter={() => setHoveredPoint({ ...dataPoint, ...point })}
+                            onFocus={() => setHoveredPoint({ ...dataPoint, ...point })}
+                            onBlur={() => setHoveredPoint(null)}
+                          />
+                          <circle
+                            className={`chart-point ${
+                              hoveredPoint?.period === dataPoint.period
+                                ? "chart-point--active"
+                                : ""
+                            }`.trim()}
+                            cx={point.x}
+                            cy={point.y}
+                            r={hoveredPoint?.period === dataPoint.period ? 5.5 : 3.5}
+                          />
+                        </g>
+                      );
+                    })}
+
+                    {hoveredPoint ? (
+                      <g className="chart-tooltip">
+                        <rect
+                          className="chart-tooltip__box"
+                          x={clamp(hoveredPoint.x + 12, chartPadding, chartWidth - 168 - chartPadding)}
+                          y={clamp(hoveredPoint.y - 96, chartPadding, chartHeight - 106 - chartPadding)}
+                          width={168}
+                          height={98}
+                          rx={12}
+                        />
+                        <text
+                          className="chart-tooltip__title"
+                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
+                          y={clamp(hoveredPoint.y - 72, chartPadding + 12, chartHeight - 106 + 12)}
+                        >
+                          Period {hoveredPoint.period} ({(hoveredPoint.period / periodsPerYear).toFixed(1)}y)
+                        </text>
+                        <text
+                          className="chart-tooltip__value"
+                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
+                          y={clamp(hoveredPoint.y - 48, chartPadding + 12, chartHeight - 106 + 12)}
+                        >
+                          Principal: {formatAmount(hoveredPoint.principalValue)}
+                        </text>
+                        <text
+                          className="chart-tooltip__value"
+                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
+                          y={clamp(hoveredPoint.y - 24, chartPadding + 12, chartHeight - 106 + 12)}
+                        >
+                          Contributions: {formatAmount(hoveredPoint.contributionValue)}
+                        </text>
+                        <text
+                          className="chart-tooltip__value"
+                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
+                          y={clamp(hoveredPoint.y, chartPadding + 12, chartHeight - 106 + 12)}
+                        >
+                          Total: {formatAmount(hoveredPoint.totalValue)}
+                        </text>
+                      </g>
+                    ) : null}
+                  </svg>
+                );
+              })()}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="panel learning-panel">
         <div className="learning-section">
