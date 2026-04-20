@@ -647,6 +647,21 @@ export function CompoundInterestPage() {
                   (_, i) => i * periodStep,
                 ).filter((i) => i < growthData.length);
 
+                const tooltipWidth = 168;
+                const tooltipHeight = 98;
+                const tooltipX = hoveredPoint
+                  ? clamp(
+                      hoveredPoint.x + 12,
+                      chartPadding,
+                      chartWidth - tooltipWidth - chartPadding,
+                    )
+                  : 0;
+                const tooltipY = hoveredPoint
+                  ? hoveredPoint.y > tooltipHeight + chartPadding
+                    ? hoveredPoint.y - tooltipHeight - 10
+                    : hoveredPoint.y + 12
+                  : 0;
+
                 return (
                   <svg
                     className="chart-svg"
@@ -780,37 +795,37 @@ export function CompoundInterestPage() {
                       <g className="chart-tooltip">
                         <rect
                           className="chart-tooltip__box"
-                          x={clamp(hoveredPoint.x + 12, chartPadding, chartWidth - 168 - chartPadding)}
-                          y={clamp(hoveredPoint.y - 96, chartPadding, chartHeight - 106 - chartPadding)}
-                          width={168}
-                          height={98}
+                          x={tooltipX}
+                          y={tooltipY}
+                          width={tooltipWidth}
+                          height={tooltipHeight}
                           rx={12}
                         />
                         <text
                           className="chart-tooltip__title"
-                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
-                          y={clamp(hoveredPoint.y - 72, chartPadding + 12, chartHeight - 106 + 12)}
+                          x={tooltipX + 12}
+                          y={tooltipY + 22}
                         >
                           Period {hoveredPoint.period} ({(hoveredPoint.period / periodsPerYear).toFixed(1)}y)
                         </text>
                         <text
                           className="chart-tooltip__value"
-                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
-                          y={clamp(hoveredPoint.y - 48, chartPadding + 12, chartHeight - 106 + 12)}
+                          x={tooltipX + 12}
+                          y={tooltipY + 42}
                         >
                           Principal: {formatAmount(hoveredPoint.principalValue)}
                         </text>
                         <text
                           className="chart-tooltip__value"
-                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
-                          y={clamp(hoveredPoint.y - 24, chartPadding + 12, chartHeight - 106 + 12)}
+                          x={tooltipX + 12}
+                          y={tooltipY + 62}
                         >
                           Contributions: {formatAmount(hoveredPoint.contributionValue)}
                         </text>
                         <text
                           className="chart-tooltip__value"
-                          x={clamp(hoveredPoint.x + 24, chartPadding + 12, chartWidth - 168 + 12)}
-                          y={clamp(hoveredPoint.y, chartPadding + 12, chartHeight - 106 + 12)}
+                          x={tooltipX + 12}
+                          y={tooltipY + 82}
                         >
                           Total: {formatAmount(hoveredPoint.totalValue)}
                         </text>
